@@ -13,7 +13,7 @@
 
 # Ignore all files under Assets/Fonts/
 [Aa]ssets/[Pp]roject/[Cc]ommon/[Ff]ont/
-[Aa]ssets/[Im]portAssets/
+[Aa]ssets/[Ii]mport[Aa]ssets/
 
 
 
