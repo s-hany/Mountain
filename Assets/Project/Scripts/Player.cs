@@ -1,36 +1,39 @@
 using UnityEngine;
 
-
+[RequireComponent(typeof(Rigidbody))]
 public class Player : MonoBehaviour
 {
-    // 移動スピード関連
-    public float baseSpeed = 5f;            // 基本速度（何も入力がないときの目安）
-    public float currentSpeed = 5f;         // 現在の速度。入力や地形で変化する
-    public float accelerationRate = 3f;     // Dキー（正入力）による加速率
-    public float decelerationRate = 3f;     // Aキー（負入力）による減速率
-    public float maxSpeed = 15f;
-    public float minSpeed = 3f;
+    // 【移動設定】
+    public float baseSpeed = 5f;            // 基本状態での速度
+    public float currentSpeed = 5f;         // 現在の移動速度
+    public float accelerationRate = 3f;     // 右入力(Dキー)による加速率
+    public float decelerationRate = 3f;     // 左入力(Aキー)による減速率
+    public float maxSpeed = 15f;            // 最高速度
+    public float minSpeed = 3f;             // 最低速度
 
-    // 地形（坂）による加速
-    public float slopeMultiplier = 5f;      // 地面の傾斜が右下の場合に加算されるスピード係数
-    public float raycastDistance = 1.0f;    // 地面判定用Raycastの距離
-    public LayerMask groundLayer;           // 地面判定に使用するレイヤー
+    // 【坂道による補正】
+    public float slopeMultiplier = 5f;      // 地形の傾斜が影響する加速係数
+    public float raycastDistance = 1.0f;    // Raycast の距離
+    public LayerMask groundLayer;           // 地面判定用レイヤー
 
-    // ジャンプ関連
-    public float jumpForce = 7f;
-    public int maxJumps = 2;                // 二段ジャンプ可能
-    private int jumpCount = 0;              // 現在のジャンプ回数
+    // 【ジャンプ設定】
+    public float jumpForce = 7f;            // ジャンプ時のインパルス
+    public int maxJumps = 2;              // 最大ジャンプ回数（二段ジャンプ）
+    private int jumpCount = 0;             // 現在のジャンプ回数
+    private bool jumpRequested = false;    // ジャンプ要求フラグ
 
-    // 障害物衝突時のラグドール変換
-    public float obstacleSpeedThreshold = 10f;  // この速度以上の衝突でラグドール化
-    public GameObject ragdollPrefab;             // ラグドールPrefab（プレイヤーと同じ位置、回転で生成）
+    // 【障害物＆ラグドール】
+    public float obstacleSpeedThreshold = 10f;  // この速度以上の衝突でラグドール切替
+    public GameObject ragdollPrefab;            // ラグドール用のPrefab
 
-    // コンポーネント参照
+    // 【コンポーネント参照】
     private Rigidbody rb;
     private Animator animator;
 
-    // 地面接触フラグ
+    // 【接地状態】
     private bool isGrounded = false;
+
+    public float normalizedSpeed = 0f; // 0～1 の範囲で現在の移動速度を表す変数
 
     void Start()
     {
@@ -41,83 +44,123 @@ public class Player : MonoBehaviour
 
     void Update()
     {
-        // Horizontal入力の取得（A, Dキー：-1～+1）
-        float horizontalInput = Input.GetAxisRaw("Horizontal");
-
-        // 右入力（Dキー）→加速
-        if (horizontalInput > 0)
-        {
-            currentSpeed += accelerationRate * Time.deltaTime;
-            animator.SetBool("isRunning", true);
-            animator.SetBool("isSlowing", false);
-        }
-        // 左入力（Aキー）→減速（右方向移動は維持）
-        else if (horizontalInput < 0)
-        {
-            currentSpeed -= decelerationRate * Time.deltaTime;
-            animator.SetBool("isSlowing", true);
-            animator.SetBool("isRunning", false);
-        }
-        // 入力が無い場合は基本速度に戻す
-        else
-        {
-            currentSpeed = Mathf.MoveTowards(currentSpeed, baseSpeed, decelerationRate * Time.deltaTime);
-            animator.SetBool("isRunning", false);
-            animator.SetBool("isSlowing", false);
-        }
-        
-        // 速度の範囲を制限
-        currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
-
-        // ジャンプの処理（二段ジャンプまで可能）
+        // ジャンプ入力の検出（Input は Update で処理）
         if (Input.GetKeyDown(KeyCode.Space) && jumpCount < maxJumps)
         {
-            // 縦方向速度をリセットしてから力を加算
-            rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
-            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-            jumpCount++;
-            animator.SetTrigger("Jump");
+            if (jumpCount == 0) animator.SetTrigger("Jump");
+            else if (jumpCount == 1) animator.SetTrigger("DoubleJump");
+            jumpRequested = true;
         }
         
-        // Animatorに速度の情報（オプションで正規化した値）を渡す
-        animator.SetFloat("Speed", currentSpeed);
+        // アニメーション処理
+        Anim();
     }
 
     void FixedUpdate()
     {
-        // 地面の傾斜を調べるため、下方向にRaycast
+        // 移動および物理処理
+        Move();
+    }
+
+    /// <summary>
+    /// キャラクターの移動に関わる処理（入力、速度更新、坂道による補正、ジャンプ処理）
+    /// </summary>
+    private void Move()
+    {
+        // Horizontal入力の取得（-1～+1）※Aキー→負、Dキー→正
+        float horizontalInput = Input.GetAxisRaw("Horizontal");
+
+        // 入力に応じた速度更新
+        if (horizontalInput > 0)
+        {
+            currentSpeed += accelerationRate * Time.deltaTime;
+        }
+        else if (horizontalInput < 0)
+        {
+            currentSpeed -= decelerationRate * Time.deltaTime;
+        }
+        else
+        {
+            // 入力が無ければ、基本速度に回帰する（自然減速）
+            currentSpeed = Mathf.MoveTowards(currentSpeed, baseSpeed, decelerationRate * Time.deltaTime);
+        }
+        // 速度を下限・上限にクランプ
+        currentSpeed = Mathf.Clamp(currentSpeed, minSpeed, maxSpeed);
+
+        // 坂道による速度補正
         float slopeBonus = 0f;
         RaycastHit hit;
         if (Physics.Raycast(transform.position, Vector3.down, out hit, raycastDistance, groundLayer))
         {
-            // 地面の法線のX成分が負（右下の傾斜）なら、傾斜に応じたボーナスを計算
+            // 地面の法線の X 成分が負 → 右下の傾斜なら補正
             if (hit.normal.x < 0)
             {
                 slopeBonus = -hit.normal.x * slopeMultiplier;
             }
         }
-        
-        // 実際の移動速度 = 現在の速度 + 地形による加速（坂ボーナス）
+
         float effectiveSpeed = currentSpeed + slopeBonus;
-        
-        // 常に正のX方向へ移動。Yはジャンプ等の影響、Zは固定（2.5D想定）
+
+        // ジャンプ要求があれば処理
+        if (jumpRequested)
+        {
+            // 現在の縦方向速度をリセットしてからジャンプ力を加える
+            Vector3 tempVelocity = rb.linearVelocity;
+            tempVelocity.y = 0;
+            rb.linearVelocity = tempVelocity;
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+            jumpCount++;
+            jumpRequested = false;
+        }
+
+        // 常に正のX方向へ移動。Yはジャンプ/重力、Zは固定（2.5Dの場合）
         rb.linearVelocity = new Vector3(effectiveSpeed, rb.linearVelocity.y, 0);
+    }
+
+    /// <summary>
+    /// アニメーションに関する処理。移動速度に応じた BlendTree 用の Speed 値の更新や、
+    /// 入力により走っている／減速状態等のブール値を制御する。
+    /// </summary>
+    private void Anim()
+    {
+        // 現在の移動速度を下限・上限の範囲から 0～1 に正規化
+        normalizedSpeed = (currentSpeed - minSpeed) / (maxSpeed - minSpeed);
+        normalizedSpeed = Mathf.Clamp01(normalizedSpeed);
+        animator.SetFloat("Speed", normalizedSpeed);
+
+        // 入力に応じたアニメーション状態の切り替え
+        float horizontalInput = Input.GetAxisRaw("Horizontal");
+        if (horizontalInput > 0)
+        {
+            animator.SetBool("isRunning", true);
+            animator.SetBool("isSlowing", false);
+        }
+        else if (horizontalInput < 0)
+        {
+            animator.SetBool("isSlowing", true);
+            animator.SetBool("isRunning", false);
+        }
+        else
+        {
+            animator.SetBool("isRunning", false);
+            animator.SetBool("isSlowing", false);
+        }
+
+        // 接地状態（落下中の場合などの遷移に利用）
+        animator.SetBool("isGrounded", isGrounded);
     }
 
     void OnCollisionEnter(Collision collision)
     {
-        // 地面と接触した場合
-        if(collision.gameObject.CompareTag("Ground"))
+        if (collision.gameObject.CompareTag("Ground"))
         {
             isGrounded = true;
             jumpCount = 0;
-            animator.SetBool("isGrounded", true);
         }
-        
-        // 障害物との接触検出
-        if(collision.gameObject.CompareTag("Obstacle"))
+
+        if (collision.gameObject.CompareTag("Obstacle"))
         {
-            if(currentSpeed >= obstacleSpeedThreshold)
+            if (currentSpeed >= obstacleSpeedThreshold)
             {
                 TriggerRagdoll();
             }
@@ -126,29 +169,23 @@ public class Player : MonoBehaviour
 
     void OnCollisionExit(Collision collision)
     {
-        if(collision.gameObject.CompareTag("Ground"))
+        if (collision.gameObject.CompareTag("Ground"))
         {
             isGrounded = false;
-            animator.SetBool("isGrounded", false);
         }
     }
-    
+
     /// <summary>
-    /// 障害物衝突時にラグドールへ切り替える処理
+    /// 障害物との衝突時に、ラグドールPrefabへキャラクターを切り替える処理
     /// </summary>
-    void TriggerRagdoll()
+    private void TriggerRagdoll()
     {
-        // 現在の位置・回転でラグドールPrefabを生成
         GameObject ragdoll = Instantiate(ragdollPrefab, transform.position, transform.rotation);
-        
-        // プレイヤーの現在の速度をラグドールの各パーツにコピー（自然な物理挙動を維持）
         Rigidbody[] ragdollRigidbodies = ragdoll.GetComponentsInChildren<Rigidbody>();
-        foreach(Rigidbody rbRagdoll in ragdollRigidbodies)
+        foreach (Rigidbody rbRagdoll in ragdollRigidbodies)
         {
             rbRagdoll.linearVelocity = rb.linearVelocity;
         }
-        
-        // プレイヤーオブジェクトは破棄する
         Destroy(gameObject);
     }
 }
