@@ -35,6 +35,10 @@ public class Player : MonoBehaviour
 
     public float normalizedSpeed = 0f; // 0～1 の範囲で現在の移動速度を表す変数
 
+    public AudioClip dieSE; // 死亡時のSE
+
+    public AudioSource audioSource; // AudioSourceコンポーネント
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -180,6 +184,11 @@ public class Player : MonoBehaviour
     /// </summary>
     private void TriggerRagdoll()
     {
+        // 死亡SEを再生
+        if (audioSource != null && dieSE != null)
+        {
+            audioSource.PlayOneShot(dieSE);
+        }
         GameObject ragdoll = Instantiate(ragdollPrefab, transform.position, transform.rotation);
         Rigidbody[] ragdollRigidbodies = ragdoll.GetComponentsInChildren<Rigidbody>();
         foreach (Rigidbody rbRagdoll in ragdollRigidbodies)

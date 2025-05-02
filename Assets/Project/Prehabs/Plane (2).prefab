@@ -122,5 +122,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 800e6304007043b4cb0385dfc27af70b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  poolIndex: 1
+  poolIndex: 9999
   lifeTime: 10
