@@ -39,6 +39,15 @@ public class Player : MonoBehaviour
 
     public AudioSource audioSource; // AudioSourceコンポーネント
 
+    public SpeedMonitor speedMonitor; // SpeedMonitorコンポーネント
+
+    private void Awake()
+    {
+        // Rigidbodyコンポーネントを取得
+        rb = GetComponent<Rigidbody>();
+        rb.freezeRotation = true; // 回転を固定
+    }
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -164,7 +173,7 @@ public class Player : MonoBehaviour
 
         if (collision.gameObject.CompareTag("Obstacle"))
         {
-            if (currentSpeed >= obstacleSpeedThreshold)
+            if (speedMonitor != null && speedMonitor.CurrentSpeed >= obstacleSpeedThreshold)
             {
                 TriggerRagdoll();
             }

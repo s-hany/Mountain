@@ -7,6 +7,7 @@ public class SpeedMonitor : MonoBehaviour
     [SerializeField] private Rigidbody targetRigidbody;
     [SerializeField] private TextMeshPro speedTextDisplay;
     [SerializeField] private TextMeshProUGUI uiSpeedTextDisplay;
+    [SerializeField] private TextMeshProUGUI highSpeedTextDisplay; // 高速時の表示用TextMeshPro
 
     [Header("表示設定")]
     [SerializeField] private bool showFullSpeed = true;
@@ -15,6 +16,10 @@ public class SpeedMonitor : MonoBehaviour
     [SerializeField] private string speedUnit = "m/s";
     [SerializeField] private string displayFormat = "Speed: {0:F2} {1}";
     [SerializeField] private float updateInterval = 0.1f;
+
+    [Header("高速時の切り替え設定")]
+    [SerializeField] private bool enableHighSpeedSwitch = true; // 高速時の切り替えを有効にするか
+    [SerializeField] private float highSpeedThreshold = 10f; // 高速とみなす速度の閾値
 
     // 速度情報の公開プロパティ（他のスクリプトから参照用）
     public float CurrentSpeed { get; private set; }
@@ -44,6 +49,12 @@ public class SpeedMonitor : MonoBehaviour
         HorizontalSpeed = 0f;
         VerticalSpeed = 0f;
         timer = 0f;
+
+        // 高速時のTextMeshProを非表示にする
+        if (highSpeedTextDisplay != null)
+        {
+            highSpeedTextDisplay.gameObject.SetActive(false);
+        }
     }
 
     private void Update()
@@ -72,13 +83,33 @@ public class SpeedMonitor : MonoBehaviour
                             (showHorizontalSpeed ? HorizontalSpeed : 
                             (showVerticalSpeed ? VerticalSpeed : CurrentSpeed));
 
-        // TextMeshProが設定されている場合、表示を更新
+        // 高速時の切り替え機能が有効な場合
+        if (enableHighSpeedSwitch && highSpeedTextDisplay != null)
+        {
+            if (CurrentSpeed >= highSpeedThreshold)
+            {
+                // 高速時のTextMeshProを表示し、通常のTextMeshProを非表示にする
+                if (speedTextDisplay != null) speedTextDisplay.gameObject.SetActive(false);
+                if (uiSpeedTextDisplay != null) uiSpeedTextDisplay.gameObject.SetActive(false);
+                highSpeedTextDisplay.gameObject.SetActive(true);
+                highSpeedTextDisplay.text = string.Format(displayFormat, displaySpeed, speedUnit);
+                return;
+            }
+            else
+            {
+                // 通常のTextMeshProを表示し、高速時のTextMeshProを非表示にする
+                if (speedTextDisplay != null) speedTextDisplay.gameObject.SetActive(true);
+                if (uiSpeedTextDisplay != null) uiSpeedTextDisplay.gameObject.SetActive(true);
+                highSpeedTextDisplay.gameObject.SetActive(false);
+            }
+        }
+
+        // 通常のTextMeshProの表示を更新
         if (speedTextDisplay != null)
         {
             speedTextDisplay.text = string.Format(displayFormat, displaySpeed, speedUnit);
         }
 
-        // UI用TextMeshProUGUIが設定されている場合、表示を更新
         if (uiSpeedTextDisplay != null)
         {
             uiSpeedTextDisplay.text = string.Format(displayFormat, displaySpeed, speedUnit);
