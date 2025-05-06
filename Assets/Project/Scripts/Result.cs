@@ -10,10 +10,19 @@ public class Result : MonoBehaviour
     [SerializeField] private string heightUnit = "m"; // 高さの単位
     [SerializeField] private string displayFormat = "最終高度: {0:F2}{1}"; // 表示フォーマット
 
+    [SerializeField] private AudioClip clearSE; // クリア時のSE
+    [SerializeField] private AudioSource audioSource; // ゲームオーバー時のSE
+    [SerializeField] private bool isClear = false; // クリアフラグ
+
 
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        if (isClear) // クリアフラグが立っている場合、SEを再生
+        {
+            audioSource.PlayOneShot(clearSE); // クリア時のSEを再生
+        }
+
         // 結果を表示する
         if (resultText != null)
         {

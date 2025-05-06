@@ -37,6 +37,10 @@ public class Player : MonoBehaviour
 
     public AudioClip dieSE; // 死亡時のSE
 
+    public AudioClip jumpSE; // ジャンプ時のSE
+
+    public AudioClip explosionSE; // 爆発時のSE
+
     public AudioSource audioSource; // AudioSourceコンポーネント
 
     public SpeedMonitor speedMonitor; // SpeedMonitorコンポーネント
@@ -83,6 +87,7 @@ public class Player : MonoBehaviour
             if (jumpCount == 0) animator.SetTrigger("Jump");
             else if (jumpCount == 1) animator.SetTrigger("DoubleJump");
             jumpRequested = true;
+            audioSource.PlayOneShot(jumpSE); // ジャンプSEを再生
         }
     }
 
@@ -211,6 +216,7 @@ public class Player : MonoBehaviour
         // 死亡SEを再生
         if (audioSource != null && dieSE != null)
         {
+            audioSource.PlayOneShot(explosionSE);
             audioSource.PlayOneShot(dieSE);
         }
         GameObject ragdoll = Instantiate(ragdollPrefab, transform.position, transform.rotation);
