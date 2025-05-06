@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,6 +21,8 @@ public class AudioSetting_Script : MonoBehaviour
     // 音量管理システムが開かれているかどうか
     public bool Opened_Audio_Setting = false;
 
+    public bool PlayBGM_start = false;
+
     void Start()
     {
         // シーン内からSliderを探して取得
@@ -29,6 +32,9 @@ public class AudioSetting_Script : MonoBehaviour
         // 保存された音量を反映
         BGMvolumeSlider.value = Update_Volume.BGMsliderValue;
         SEvolumeSlider.value = Update_Volume.SEsliderValue;
+
+        if(PlayBGM_start == true)    Play_BGM(0); // BGMを鳴らす
+
     }
 
     void Update()

@@ -41,11 +41,15 @@ public class Player : MonoBehaviour
 
     public SpeedMonitor speedMonitor; // SpeedMonitorコンポーネント
 
+    public bool isStart = false; // ゲーム開始フラグ
+
     private void Awake()
     {
         // Rigidbodyコンポーネントを取得
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true; // 回転を固定
+
+        rb.useGravity = false; // 重力を有効にする
     }
 
     void Start()
@@ -57,14 +61,8 @@ public class Player : MonoBehaviour
 
     void Update()
     {
-        // ジャンプ入力の検出（Input は Update で処理）
-        if (Input.GetKeyDown(KeyCode.Space) && jumpCount < maxJumps)
-        {
-            if (jumpCount == 0) animator.SetTrigger("Jump");
-            else if (jumpCount == 1) animator.SetTrigger("DoubleJump");
-            jumpRequested = true;
-        }
-        
+        // ジャンプ処理
+        Jump(); 
         // アニメーション処理
         Anim();
     }
@@ -75,11 +73,26 @@ public class Player : MonoBehaviour
         Move();
     }
 
+    private void Jump()
+    {
+        if (!isStart) return; // ゲーム開始前はジャンプしない
+
+        // ジャンプ入力の検出（Input は Update で処理）
+        if (Input.GetKeyDown(KeyCode.Space) && jumpCount < maxJumps)
+        {
+            if (jumpCount == 0) animator.SetTrigger("Jump");
+            else if (jumpCount == 1) animator.SetTrigger("DoubleJump");
+            jumpRequested = true;
+        }
+    }
+
     /// <summary>
     /// キャラクターの移動に関わる処理（入力、速度更新、坂道による補正、ジャンプ処理）
     /// </summary>
     private void Move()
     {
+        if (!isStart) return; // ゲーム開始前は移動しない
+
         // Horizontal入力の取得（-1～+1）※Aキー→負、Dキー→正
         float horizontalInput = Input.GetAxisRaw("Horizontal");
 
@@ -136,6 +149,8 @@ public class Player : MonoBehaviour
     /// </summary>
     private void Anim()
     {
+        if(!isStart) return; // ゲーム開始前はアニメーションしない
+
         // 現在の移動速度を下限・上限の範囲から 0～1 に正規化
         normalizedSpeed = (currentSpeed - minSpeed) / (maxSpeed - minSpeed);
         normalizedSpeed = Mathf.Clamp01(normalizedSpeed);
@@ -205,5 +220,16 @@ public class Player : MonoBehaviour
             rbRagdoll.linearVelocity = rb.linearVelocity;
         }
         Destroy(gameObject);
+    }
+
+    public void GameStart()
+    {
+        animator.SetTrigger("isStart"); // ゲーム開始時にジャンプアニメーションを再生
+        rb.useGravity = true; // 重力を有効にする
+        isStart = true; // ゲーム開始フラグを立てる
+        currentSpeed = baseSpeed; // 基本速度にリセット
+        jumpCount = 0; // ジャンプ回数をリセット
+        isGrounded = false; // 接地状態をリセット
+
     }
 }

@@ -113,4 +113,9 @@ public class HeightMonitor : MonoBehaviour
     {
         return targetTransform.position.y - initialYPosition;
     }
+
+    public float GetHeight()
+    {
+        return useRelativeHeight ? GetRelativeHeight() : GetAbsoluteHeight();
+    }
 }

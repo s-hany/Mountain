@@ -25,6 +25,11 @@ public class GameTimer : MonoBehaviour
     public float RemainingTime => currentTime;
     public bool IsPlayerAlive => playerObject != null;
 
+    private void Awake()
+    {
+        PauseTimer();
+    }
+
     private void Start()
     {
         InitializeTimer();
@@ -133,5 +138,6 @@ public class GameTimer : MonoBehaviour
     // 外部からの操作用メソッド
     public void PauseTimer() => isTimerRunning = false;
     public void ResumeTimer() => isTimerRunning = true;
+
     public void AddTime(float seconds) => currentTime += seconds;
 }
